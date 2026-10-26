@@ -1,0 +1,60 @@
+{
+  "simulation_parameters": {
+    "canopy_increase_percent": 10,
+    "city": "Chennai",
+    "date_range": "2025-04-01 to 2025-07-31"
+  },
+  "before": {
+    "mean_lst_celsius": 37.52,
+    "max_lst_celsius": 55.84,
+    "min_lst_celsius": -0.95,
+    "extreme_heat_percent": 27.89,
+    "hot_heat_percent": 47.05,
+    "extreme_pixels": 538838,
+    "hot_pixels": 908885,
+    "total_pixels": 1931800
+  },
+  "after": {
+    "mean_lst_celsius": 36.53,
+    "extreme_heat_percent": 11.1,
+    "hot_heat_percent": 32.89,
+    "extreme_pixels": 214369,
+    "hot_pixels": 635395
+  },
+  "impact": {
+    "average_cooling_celsius": 0.99,
+    "extreme_heat_reduction_percent": 16.79,
+    "hot_heat_reduction_percent": 14.16
+  },
+  "monthly_trends": [
+    {
+      "month": "April",
+      "original_lst": 36.02,
+      "projected_lst": 34.82,
+      "cooling_effect": 1.2
+    },
+    {
+      "month": "May",
+      "original_lst": 38.52,
+      "projected_lst": 37.32,
+      "cooling_effect": 1.2
+    },
+    {
+      "month": "June",
+      "original_lst": 38.02,
+      "projected_lst": 36.82,
+      "cooling_effect": 1.2
+    },
+    {
+      "month": "July",
+      "original_lst": 37.02,
+      "projected_lst": 35.82,
+      "cooling_effect": 1.2
+    }
+  ],
+  "seasonal_analysis": {
+    "historical_avg_celsius": 36.0,
+    "current_anomaly_celsius": 1.52,
+    "interpretation": "Chennai is 1.5\u00b0C above historical average. A 10% canopy increase could offset ~1.2\u00b0C of this anomaly."
+  }
+}

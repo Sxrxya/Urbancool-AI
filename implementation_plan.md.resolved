@@ -1,0 +1,160 @@
+# UrbanCool-AI — Chennai UHI Mitigation Planner
+
+AI-based Urban Heat Island mitigation planner for Chennai, India. Uses Landsat 8 satellite data via Google Earth Engine to detect heat islands, identify tree-planting priorities, simulate cooling impacts, and rank optimal plantation zones.
+
+## User Review Required
+
+> [!IMPORTANT]
+> The existing [.env](file:///c:/Users/welcome/OneDrive/Desktop/UrbanCool-AI/.env) has `GEE_PRIVATE_KEY` but the spec requires `GEE_KEY_PATH`. I will add `GEE_KEY_PATH` as an alias pointing to the same [service-account.json](file:///c:/Users/welcome/OneDrive/Desktop/UrbanCool-AI/service-account.json) file, and the code will look for `GEE_KEY_PATH` first, falling back to `GEE_PRIVATE_KEY`.
+
+> [!WARNING]
+> GEE export tasks (`Export.image.toDrive`) are asynchronous and can take minutes to hours. For the V1 prototype, all GEE processing will compute results server-side via `getInfo()` and download locally using `geemap` or `ee.Image.getDownloadURL()` for reasonable-sized areas. This avoids waiting for GEE Drive exports.
+
+## Proposed Changes
+
+### Directory Structure
+
+Create the required empty directories: `src/`, `app/`, `data/raw/`, `outputs/`, `models/`.
+
+---
+
+### Authentication Module
+
+#### [MODIFY] [.env](file:///c:/Users/welcome/OneDrive/Desktop/UrbanCool-AI/.env)
+- Add `GEE_KEY_PATH=service-account.json` variable
+
+#### [NEW] [auth.py](file:///c:/Users/welcome/OneDrive/Desktop/UrbanCool-AI/src/auth.py)
+- Load [.env](file:///c:/Users/welcome/OneDrive/Desktop/UrbanCool-AI/.env), initialize GEE with service account credentials
+- Return authenticated `ee` object via `initialize_gee()` function
+
+#### [NEW] [utils.py](file:///c:/Users/welcome/OneDrive/Desktop/UrbanCool-AI/src/utils.py)
+- Chennai bounding box & config constants
+- Helper functions: `get_chennai_boundary()`, `save_geotiff()`, `ensure_dirs()`
+
+---
+
+### Satellite Data Extraction
+
+#### [NEW] [gee_extraction.py](file:///c:/Users/welcome/OneDrive/Desktop/UrbanCool-AI/src/gee_extraction.py)
+- Extract Chennai boundary (bounding box or FAO GAUL)
+- Filter Landsat 8 C02 L2 by date (2025-04-01 to 2025-07-31) and bounds
+- Apply cloud masking using QA_PIXEL
+- Extract ST_B10, convert to Celsius (scale factor 0.00341802 + offset 149.0 - 273.15)
+- Compute mean LST composite
+- Export `outputs/lst.tif`
+
+---
+
+### NDVI Module
+
+#### [NEW] [ndvi.py](file:///c:/Users/welcome/OneDrive/Desktop/UrbanCool-AI/src/ndvi.py)
+- Compute NDVI = (SR_B5 - SR_B4) / (SR_B5 + SR_B4)
+- Classify: Dense (>0.6), Moderate (0.3–0.6), Sparse (0.1–0.3), Built-up (<0.1)
+- Export `outputs/ndvi.tif`
+
+---
+
+### Heat Classification
+
+#### [NEW] [heat_classification.py](file:///c:/Users/welcome/OneDrive/Desktop/UrbanCool-AI/src/heat_classification.py)
+- Compute mean LST, then classify pixels relative to mean:
+  - Cool (< mean-2°C), Moderate (mean-2 to mean), Warm (mean to mean+2), Hot (mean+2 to mean+4), Extreme (> mean+4)
+- Export `outputs/heat_classification.tif`
+
+---
+
+### Cooling Index
+
+#### [NEW] [cooling_index.py](file:///c:/Users/welcome/OneDrive/Desktop/UrbanCool-AI/src/cooling_index.py)
+- Compute: `CI = 0.5*TreeCanopy + 0.25*NDVI + 0.15*Albedo + 0.10*DistToWater`
+- Tree canopy proxy from NDVI thresholds; Albedo from visible bands; Distance to water from JRC water dataset
+- Normalize 0–1
+- Export `outputs/cooling_index.tif`
+
+---
+
+### Tree Need Analysis
+
+#### [NEW] [tree_need_analysis.py](file:///c:/Users/welcome/OneDrive/Desktop/UrbanCool-AI/src/tree_need_analysis.py)
+- Combine heat class + NDVI + impervious surface proxy
+- Classify: 0=Low, 1=Moderate, 2=High need
+- High need = (Hot/Extreme heat AND NDVI<0.3 AND high impervious)
+- Export `outputs/tree_need_map.tif`
+
+---
+
+### Machine Learning
+
+#### [NEW] [ml_model.py](file:///c:/Users/welcome/OneDrive/Desktop/UrbanCool-AI/src/ml_model.py)
+- Sample pixel features: LST, NDVI, distance to coast, distance to road, impervious proxy
+- Target: simulated ΔT from cooling index
+- Train `RandomForestRegressor`
+- Evaluate: R², RMSE, feature importance
+- Save model to `models/rf_model.pkl`
+- Export metrics to `outputs/model_metrics.json`
+
+---
+
+### Scenario Simulation
+
+#### [NEW] [scenario_simulation.py](file:///c:/Users/welcome/OneDrive/Desktop/UrbanCool-AI/src/scenario_simulation.py)
+- Simulate +10% canopy increase
+- Recalculate new mean LST, % extreme heat reduction, average cooling
+- Export `outputs/scenario_results.json`
+
+---
+
+### Plantation Ranking (integrated into ml_model.py)
+
+- Filter Hot/Extreme heat zones with NDVI<0.3
+- Predict ΔT with trained model
+- Select top 200 zones
+- Export `outputs/top_plantation_spots.csv` and `outputs/top_plantation_spots.geojson`
+
+---
+
+### Reporting
+
+#### [NEW] [reporting.py](file:///c:/Users/welcome/OneDrive/Desktop/UrbanCool-AI/src/reporting.py)
+- Generate `outputs/urban_heat_report.pdf` using `reportlab` + `matplotlib`
+- Include: heat map, cooling map, tree need map, plantation zones, ML metrics, scenario impact, summary stats
+
+---
+
+### Dashboard
+
+#### [NEW] [dashboard.py](file:///c:/Users/welcome/OneDrive/Desktop/UrbanCool-AI/app/dashboard.py)
+- Streamlit + Folium interactive map
+- Layers: Heat, Cooling, Tree Need, Plantation markers
+- Scenario slider for canopy % adjustment
+- Download buttons for all outputs
+- ML metrics display, summary statistics panel
+- Year-to-year comparison, monthly trend graph, seasonal anomaly detection sections
+
+---
+
+### Project Files
+
+#### [NEW] [requirements.txt](file:///c:/Users/welcome/OneDrive/Desktop/UrbanCool-AI/requirements.txt)
+- All required dependencies
+
+#### [NEW] [README.md](file:///c:/Users/welcome/OneDrive/Desktop/UrbanCool-AI/README.md)
+- Project overview, setup instructions, usage guide
+
+---
+
+## Verification Plan
+
+### Automated Tests
+1. **Import check**: `python -c "from src.auth import initialize_gee; print('OK')"` — verifies module imports
+2. **Full pipeline test**: `python -c "from src import auth, gee_extraction, ndvi, heat_classification, cooling_index, tree_need_analysis, ml_model, scenario_simulation, reporting; print('All modules import OK')"`
+3. **Dashboard launch**: `streamlit run app/dashboard.py` — verify it starts without errors
+
+### Manual Verification
+1. Run `python test_connection.py` to confirm GEE auth works
+2. Run the Streamlit dashboard and verify all layers load in the browser
+3. Check that all output files are generated in `outputs/` directory
+4. Verify the PDF report is readable
+
+> [!NOTE]
+> Full GEE data extraction requires network access and a valid service account. The dashboard is designed to work with pre-computed outputs, so it can be tested independently.
